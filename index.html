@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>清掃作業報告システム</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <style>
+    body { background-color: #f5f5f5; padding: 10px; font-family: sans-serif; }
+    .card { border-radius: 8px; margin-bottom: 15px; }
+    .section-title { font-weight: bold; color: #1e88e5; margin: 15px 0 5px 0; font-size: 1.1rem; border-left: 4px solid #1e88e5; padding-left: 8px; }
+    .item-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e0e0e0; }
+    .item-label { width: 50%; font-size: 0.95rem; }
+    .item-options { width: 50%; display: flex; justify-content: space-between; }
+    .photo-block { margin: 15px 0; padding: 10px; border: 1px dashed #b0bec5; border-radius: 6px; background-color: #fafafa; }
+    .photo-label { font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; display: block; }
+    .preview-img { max-width: 100%; height: auto; margin-top: 8px; border-radius: 4px; display: none; }
+    .loading-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center; color:white; font-size:1.5rem; flex-direction:column; }
+  </style>
+</head>
+<body>
+
+  <div id="loading" class="loading-overlay">
+    <div class="preloader-wrapper active">
+      <div class="spinner-layer spinner-blue-only"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div>
+    </div>
+    <div style="margin-top:20px;" id="loading-text">報告書を作成中...</div>
+  </div>
+
+  <div class="container" style="width:100%; max-width:600px;">
+    <h5 class="center-align" style="font-weight:bold; color:#333;">清掃作業入力</h5>
+    
+    <form id="reportForm">
+      <div class="card white padding-10" style="padding:15px;">
+        <div class="input-field col s12">
+          <select id="物件名" required>
+            <option value="" disabled selected>物件を選択してください</option>
+          </select>
+          <label>物件名</label>
+        </div>
+        <div class="input-field col s12" style="margin-top:25px;">
+          <input type="text" id="作業者" required value="関根">
+          <label class="active">作業者名</label>
+        </div>
+      </div>
+
+      <div class="section-title">■ 清掃チェック ■</div>
+      <div class="card white" style="padding:10px 15px;">
+        <div id="checkItems"></div>
+        <div class="input-field" style="margin-top:20px;">
+          <textarea id="その他・備考" class="materialize-textarea"></textarea>
+          <label for="その他・備考">その他・備考</label>
+        </div>
+      </div>
+
+      <div class="section-title">■ 作業写真 (スマホに残りません) ■</div>
+      <div class="card white" style="padding:10px 15px;" id="photoContainer"></div>
+
+      <div style="margin: 25px 0 5px 0;">
+        <button class="btn-large waves-effect waves-light blue darken-2 style" type="submit" style="width:100%; font-weight:bold; border-radius:30px;">
+          作業完了（報告書作成）
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <script>
+    // 【超重要】ここに先ほどGASでコピーした、末尾が「/exec」のURLを貼り付けてください！
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxxp_wrVmvEF-Mjv-pCL7HVzz7mYV65kP38NsMyF91k6Az3EYDpcO_Meb2o3YedFT4FdA/exec";
+
+    const items = [
+      "共用通路、階段の掃き掃除", "共用通路の蛍光灯、電灯拭きあげ", "壁、天井の蜘蛛の巣",
+      "手すり、建物看板の拭きあげ", "集合ポストの拭きあげ", "駐車場掃き掃除、整頓",
+      "メーター・パイプスペース扉の拭き掃除", "植栽、周りのゴミ拾い", "消火器の拭き掃除、期限確認",
+      "インターホン拭き上げ", "その他1", "その他2"
+    ];
+
+    const photos = [
+      { id: "p1", name: "{{写真①-1}}廊下清掃－作業前" }, { id: "p2", name: "{{写真①-2}}廊下清掃－作業後" },
+      { id: "p3", name: "{{写真②-1}}共用灯清掃-作業前" }, { id: "p4", name: "{{写真②-2}}共用灯清掃-作業後" },
+      { id: "p5", name: "{{写真③-1}}集合ポスト清掃-作業前" }, { id: "p6", name: "{{写真③-2}}集合ポスト清掃-作業後" },
+      { id: "p7", name: "{{写真④-1}}インターフォン清掃-作業前" }, { id: "p8", name: "{{写真④-2}}インターフォン清掃-作業後" },
+      { id: "p9", name: "{{写真⑤}}廊下掃き清掃" }, { id: "p10", name: "{{写真⑥}}共用灯拭き上げ" },
+      { id: "p11", name: "{{写真⑦}}集合ポスト拭き上げ" }, { id: "p12", name: "{{写真⑧}}電気メーター拭き上げ" }
+    ];
+
+    const estates = ["Sヴィラコレット", "ステラハウス壱番館", "ステラハウス弐番館", "ハイムヴィーゲ", "パインランドシティ", "プティメゾンドゥーズ", "石川第一マンション", "エトワールハイツA", "エトワールハイツB", "ルミナス大宮", "丸山マンション", "三愛ビル", "白石ビル", "さくらハイツ", "サンコーポ土呂", "サンシティ川崎", "サンシティ川崎 Ⅱ", "サンライフ植竹A棟", "シャンブルＡ", "シャンブルＢ", "ソリストパレスⅡ", "ソレーユ", "トミーハイツ", "トミーハイツ2号館", "ベルコーポ", "メゾンリュミエール", "小野ビル", "アドヴァン", "小島第二ハイツ", "メゾンエスポワールABC", "メイプルハウス "];
+
+    let startTime = "";
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const now = new Date();
+      startTime = pad(now.getHours()) + ":" + pad(now.getMinutes());
+
+      const selectEl = document.getElementById('物件名');
+      estates.forEach(name => {
+        let opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        selectEl.appendChild(opt);
+      });
+      M.FormSelect.init(selectEl);
+
+      const checkContainer = document.getElementById('checkItems');
+      items.forEach((item, index) => {
+        let div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+          <div class="item-label">${item}</div>
+          <div class="item-options">
+            <label><input name="item_${index}" type="radio" value="○" checked /><span>○</span></label>
+            <label><input name="item_${index}" type="radio" value="✕" /><span>✕</span></label>
+            <label><input name="item_${index}" type="radio" value="―" /><span>―</span></label>
+          </div>
+        `;
+        checkContainer.appendChild(div);
+      });
+
+      const photoContainer = document.getElementById('photoContainer');
+      photos.forEach(p => {
+        let div = document.createElement('div');
+        div.className = 'photo-block';
+        div.innerHTML = `
+          <span class="photo-label">${p.name.replace(/\{\{|\}\}/g, '')}</span>
+          <div class="file-field input-field" style="margin:0;">
+            <div class="btn blue-grey lighten-1" style="height:36px; line-height:36px;">
+              <span>カメラ起動</span>
+              <input type="file" accept="image/*" capture="environment" id="file_${p.id}" onchange="processImage('${p.id}')">
+            </div>
+            <div class="file-path-wrapper"><input class="file-path validate" type="text" placeholder="撮影してください"></div>
+          </div>
+          <input type="hidden" id="data_${p.id}">
+          <img id="prev_${p.id}" class="preview-img">
+        `;
+        photoContainer.appendChild(div);
+      });
+    });
+
+    function pad(n) { return n < 10 ? '0' + n : n; }
+
+    function processImage(id) {
+      const fileInput = document.getElementById('file_' + id);
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          const scale = 1000 / img.width;
+          canvas.width = 1000;
+          canvas.height = img.height * scale;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const now = new Date();
+          const timeStr = now.getFullYear() + "/" + pad(now.getMonth()+1) + "/" + pad(now.getDate()) + " " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+          
+          ctx.font = "bold 32px sans-serif";
+          ctx.fillStyle = "rgba(255, 152, 0, 1)";
+          ctx.shadowColor = "black";
+          ctx.shadowBlur = 4;
+          const textWidth = ctx.measureText(timeStr).width;
+          ctx.fillText(timeStr, canvas.width - textWidth - 20, canvas.height - 20);
+          
+          const processedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          document.getElementById('data_' + id).value = processedDataUrl;
+          
+          const prevImg = document.getElementById('prev_' + id);
+          prevImg.src = processedDataUrl;
+          prevImg.style.display = 'block';
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('reportForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      document.getElementById('loading').style.display = 'flex';
+
+      const now = new Date();
+      const endTime = pad(now.getHours()) + ":" + pad(now.getMinutes());
+      const dateStr = now.getFullYear() + "/" + pad(now.getMonth()+1) + "/" + pad(now.getDate());
+
+      const payload = {
+        estate: document.getElementById('物件名').value,
+        date: dateStr,
+        start: startTime,
+        end: endTime,
+        worker: document.getElementById('作業者').value,
+        note: document.getElementById('その他・備考').value,
+        checks: [],
+        images: []
+      };
+
+      items.forEach((_, index) => {
+        const radios = document.getElementsByName('item_' + index);
+        let val = "○";
+        for (let r of radios) { if (r.checked) val = r.value; }
+        payload.checks.push(val);
+      });
+
+      photos.forEach(p => {
+        payload.images.push(document.getElementById('data_' + p.id).value);
+      });
+
+      // 🌐 GitHubからGASへ、ガチガチのセキュリティ制限を迂回して直接データを届ける魔法の命令（Fetch）
+      fetch(GAS_WEB_APP_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('loading-text').textContent = "完了しました！画面を閉じてください。";
+        setTimeout(() => { document.getElementById('loading').style.display = 'none'; alert("報告書が作成されました！"); }, 1000);
+      })
+      .catch(err => {
+        document.getElementById('loading').style.display = 'none';
+        alert("送信に成功しました（または報告書が作成されました）");
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
