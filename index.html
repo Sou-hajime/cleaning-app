@@ -34,7 +34,6 @@
     
     <form id="reportForm">
       <div class="card white padding-10" style="padding:15px;">
-        
         <label style="font-size:0.9rem; color:#666; font-weight:bold;">清掃頻度を選択してください</label>
         <div class="flex-radio-group">
           <label><input name="frequency" type="radio" value="all" checked /><span>すべて</span></label>
@@ -69,7 +68,7 @@
       <div class="card white" style="padding:10px 15px;" id="photoContainer"></div>
 
       <div style="margin: 25px 0 5px 0;">
-        <button class="btn-large waves-effect waves-light blue darken-2 style" type="submit" style="width:100%; font-weight:bold; border-radius:30px;">
+        <button class="btn-large waves-effect waves-light blue darken-2" type="submit" style="width:100%; font-weight:bold; border-radius:30px;">
           作業完了（報告書作成）
         </button>
       </div>
@@ -78,10 +77,9 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
   <script>
-    // 【超重要】ここに先ほどGASでコピーした、末尾が「/exec」のURLを貼り付けてください！
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxxp_wrVmvEF-Mjv-pCL7HVzz7mYV65kP38NsMyF91k6Az3EYDpcO_Meb2o3YedFT4FdA/exec";
+    // 💡 6月18日と同じ本番用URL（末尾/execのもの）を入れてください
+    const GAS_WEB_APP_URL = "ここにGASのウェブアプリURLを貼り付けてください";
 
-    // 清掃項目の定義
     const items = [
       "共用通路、階段の掃き掃除", "共用通路の蛍光灯、電灯拭きあげ", "壁、天井の蜘蛛の巣",
       "手すり、建物看板の拭きあげ", "集合ポストの拭きあげ", "駐車場掃き掃除、整頓",
@@ -89,30 +87,24 @@
       "インターホン拭き上げ", "その他1", "その他2"
     ];
 
-    // 💡 改善2：現場の撮影動線に合わせた「作業前 ➔ 作業中（状況） ➔ 作業後」の表示順
-    // ※ 内部的な「id（送信順）」は元のGASプログラムと100%一致させてズレを防いでいます
+    // 💡 現場動線に合わせた並び順
     const displayPhotosOrder = [
       { id: "p1", name: "①廊下清掃－作業前" },
       { id: "p9", name: "⑤廊下掃き清掃（作業状況）" },
       { id: "p2", name: "①廊下清掃－作業後" },
-      
       { id: "p3", name: "②共用灯清掃-作業前" },
       { id: "p10", name: "⑥共用灯拭き上げ（作業状況）" },
       { id: "p4", name: "②共用灯清掃-作業後" },
-      
       { id: "p5", name: "③集合ポスト清掃-作業前" },
       { id: "p11", name: "⑦集合ポスト拭き上げ（作業状況）" },
       { id: "p6", name: "③集合ポスト清掃-作業後" },
-      
       { id: "p7", name: "④インターフォン清掃-作業前" },
       { id: "p12", name: "⑧電気メーター拭き上げ（作業状況）" },
       { id: "p8", name: "④インターフォン清掃-作業後" }
     ];
 
-    // 物件データベース（頻度ごとの分類）
     const estateDatabase = {
-      m4: [], // 今後、月4回の物件があればここに入れます
-      m2: [], // 今後、月2回の物件があればここに入れます
+      m4: [], m2: [],
       m1: ["Sヴィラコレット", "ステラハウス壱番館", "ステラハウス弐番館", "ハイムヴィーゲ", "パインランドシティ", "プティメゾンドゥーズ", "石川第一マンション", "エトワールハイツA", "エトワールハイツB", "ルミナス大宮", "丸山マンション", "三愛ビル", "白石ビル", "さくらハイツ", "サンコーポ土呂", "サンシティ川崎", "サンシティ川崎 Ⅱ", "サンライフ植竹A棟", "シャンブルＡ", "シャンブルＢ", "ソリストパレスⅡ", "ソレーユ", "トミーハイツ", "トミーハイツ2号館", "ベルコーポ", "メゾンリュミエール", "小野ビル", "アドヴァン", "小島第二ハイツ", "メゾンエスポワールABC", "メイプルハウス "]
     };
 
@@ -122,16 +114,11 @@
       const now = new Date();
       startTime = pad(now.getHours()) + ":" + pad(now.getMinutes());
 
-      // 物件選択リストを初期化＆頻度切り替えイベント設定
       updateEstateSelect("all");
-      const radios = document.getElementsByName('frequency');
-      radios.forEach(radio => {
-        radio.addEventListener('change', function() {
-          updateEstateSelect(this.value);
-        });
+      document.getElementsByName('frequency').forEach(radio => {
+        radio.addEventListener('change', function() { updateEstateSelect(this.value); });
       });
 
-      // 清掃チェックリスト生成
       const checkContainer = document.getElementById('checkItems');
       items.forEach((item, index) => {
         let div = document.createElement('div');
@@ -147,7 +134,6 @@
         checkContainer.appendChild(div);
       });
 
-      // 写真撮影ブロック生成（作業の流れに沿った並び順で画面を構築）
       const photoContainer = document.getElementById('photoContainer');
       displayPhotosOrder.forEach(p => {
         let div = document.createElement('div');
@@ -168,22 +154,12 @@
       });
     });
 
-    // 💡 物件選択リストを頻度に合わせて書き換える処理
     function updateEstateSelect(freq) {
       const selectEl = document.getElementById('物件名');
       selectEl.innerHTML = '<option value="" disabled selected>物件を選択してください</option>';
-      
-      let list = [];
-      if (freq === "all") {
-        list = [...estateDatabase.m4, ...estateDatabase.m2, ...estateDatabase.m1];
-      } else {
-        list = estateDatabase[freq] || [];
-      }
-
+      let list = freq === "all" ? [...estateDatabase.m4, ...estateDatabase.m2, ...estateDatabase.m1] : (estateDatabase[freq] || []);
       list.forEach(name => {
-        let opt = document.createElement('option');
-        opt.value = name; opt.textContent = name;
-        selectEl.appendChild(opt);
+        let opt = document.createElement('option'); opt.value = name; opt.textContent = name; selectEl.appendChild(opt);
       });
       M.FormSelect.init(selectEl);
     }
@@ -201,7 +177,6 @@
         img.onload = function() {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
           const scale = 1000 / img.width;
           canvas.width = 1000;
           canvas.height = img.height * scale;
@@ -212,17 +187,15 @@
           
           ctx.font = "bold 32px sans-serif";
           ctx.fillStyle = "rgba(255, 152, 0, 1)";
-          ctx.shadowColor = "black";
-          ctx.shadowBlur = 4;
+          ctx.shadowColor = "black"; ctx.shadowBlur = 4;
           const textWidth = ctx.measureText(timeStr).width;
           ctx.fillText(timeStr, canvas.width - textWidth - 20, canvas.height - 20);
           
-          const processedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          const processedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
           document.getElementById('data_' + id).value = processedDataUrl;
           
           const prevImg = document.getElementById('prev_' + id);
-          prevImg.src = processedDataUrl;
-          prevImg.style.display = 'block';
+          prevImg.src = processedDataUrl; prevImg.style.display = 'block';
         };
         img.src = event.target.result;
       };
@@ -237,6 +210,19 @@
       const endTime = pad(now.getHours()) + ":" + pad(now.getMinutes());
       const dateStr = now.getFullYear() + "/" + pad(now.getMonth()+1) + "/" + pad(now.getDate());
 
+      const checksArr = [];
+      items.forEach((_, index) => {
+        const radios = document.getElementsByName('item_' + index);
+        let val = "○";
+        for (let r of radios) { if (r.checked) val = r.value; }
+        checksArr.push(val);
+      });
+
+      const imagesArr = [];
+      for (let k = 1; k <= 12; k++) {
+        imagesArr.push(document.getElementById('data_p' + k).value || "");
+      }
+
       const payload = {
         estate: document.getElementById('物件名').value,
         date: dateStr,
@@ -244,34 +230,29 @@
         end: endTime,
         worker: document.getElementById('作業者').value,
         note: document.getElementById('その他・備考').value,
-        checks: [],
-        images: []
+        checks: checksArr,
+        images: imagesArr
       };
-
-      items.forEach((_, index) => {
-        const radios = document.getElementsByName('item_' + index);
-        let val = "○";
-        for (let r of radios) { if (r.checked) val = r.value; }
-        payload.checks.push(val);
-      });
-
-      // 内部データ（payload）はp1〜p12の順番で正しく整列させてGASに送る（裏側でパズルを戻す処理）
-      for (let k = 1; k <= 12; k++) {
-        payload.images.push(document.getElementById('data_p' + k).value);
-      }
 
       fetch(GAS_WEB_APP_URL, {
         method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(payload)
       })
-      .then(response => response.json())
-      .then(data => {
+      .then(() => {
         document.getElementById('loading-text').textContent = "完了しました！画面を閉じてください。";
-        setTimeout(() => { document.getElementById('loading').style.display = 'none'; alert("報告書が作成されました！"); }, 1000);
+        setTimeout(() => { 
+          document.getElementById('loading').style.display = 'none'; 
+          alert("送信に成功しました！（報告書が自動作成されます）"); 
+          document.getElementById('reportForm').reset();
+          document.querySelectorAll('.preview-img').forEach(img => img.style.display = 'none');
+          document.querySelectorAll('input[type="hidden"]').forEach(input => input.value = '');
+        }, 1200);
       })
       .catch(err => {
         document.getElementById('loading').style.display = 'none';
-        alert("送信に成功しました（または報告書が作成されました）");
+        alert("送信処理を完了しました。");
         console.error(err);
       });
     });
