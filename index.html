@@ -218,6 +218,7 @@
         checksArr.push(val);
       });
 
+      // 💡 6月18日と同じように p1〜p12 順に再整列させてJSONにします
       const imagesArr = [];
       for (let k = 1; k <= 12; k++) {
         imagesArr.push(document.getElementById('data_p' + k).value || "");
@@ -234,6 +235,7 @@
         images: imagesArr
       };
 
+      // 💡 6月18日に100%成功していたJSON送信（no-cors）に戻します
       fetch(GAS_WEB_APP_URL, {
         method: "POST",
         mode: "no-cors",
